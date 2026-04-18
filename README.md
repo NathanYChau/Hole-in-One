@@ -2,7 +2,7 @@
 CS583 - 3D Game Project
 ## Group Members
 - Anthony Kim
-- Ben Vanhuang
+- Benjamin Vanhuang
 - Nathan Chau
 
 ## Game Description
@@ -15,8 +15,13 @@ A 3D third-person golf game built in Unity. Players click and drag the ball to a
 - Stroke counter / basic scoring
 - Goal zone detection
 
+## Future Goals
+- Visible power meter with sound fx
+- Sound should be dependent on what sort of interaction is present to make it clear to the player
+- Interactable level hazards: The user should be able to click and trigger some sort of interaction
+
 ## Team Roles
 | Member | Role |
-| Anthony Kim | Ball physics, shooting mechanic, Unity scripting |
-| Ben Vanhuang| Level design, hazard placement, course layout |
-| Nathan Chau | Art / materials / UI (stroke counter, menus) |
+-| Anthony Kim | Ball physics, shooting mechanic, Unity scripting |
+-| Benjamin Vanhuang| Level design, hazard placement, course layout |
+-| Nathan Chau | Art / materials / UI (stroke counter, menus) |
