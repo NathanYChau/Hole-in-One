@@ -21,7 +21,6 @@ A 3D third-person golf game built in Unity. Players click and drag the ball to a
 - Interactable level hazards: The user should be able to click and trigger some sort of interaction
 
 ## Team Roles
-| Member | Role |
--| Anthony Kim | Ball physics, shooting mechanic, Unity scripting |
--| Benjamin Vanhuang| Level design, hazard placement, course layout |
--| Nathan Chau | Art / materials / UI (stroke counter, menus) |
+- Anthony Kim : Ball physics, shooting mechanic, Unity scripting
+- Benjamin Vanhuang : Level design, hazard placement, course layout
+- Nathan Chau : Art / materials / UI (stroke counter, menus)
