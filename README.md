@@ -1,9 +1,9 @@
 # Hole-in-One-temp-name-
 CS583 - 3D Game Project
 ## Group Members
-- Nathan Chau
-- Ben Vanhuang
 - Anthony Kim
+- Ben Vanhuang
+- Nathan Chau
 
 ## Game Description
 A 3D third-person golf game built in Unity. Players click and drag the ball to aim and control shot power, navigating holes with hazards like walls, friction zones, and gaps to reach the goal in as few strokes as possible. Players can interact with and reposition sections of the course itself, adding a puzzle element to each hole.
@@ -16,3 +16,7 @@ A 3D third-person golf game built in Unity. Players click and drag the ball to a
 - Goal zone detection
 
 ## Team Roles
+| Member | Role |
+| Anthony Kim | Ball physics, shooting mechanic, Unity scripting |
+| Ben Vanhuang| Level design, hazard placement, course layout |
+| Nathan Chau | Art / materials / UI (stroke counter, menus) |
