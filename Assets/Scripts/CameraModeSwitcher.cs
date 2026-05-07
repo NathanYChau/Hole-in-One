@@ -8,7 +8,7 @@ public class CameraModeSwitcher : MonoBehaviour
 
     [Header("Mode Toggle")]
     public Key toggleKey = Key.F; // Press F to switch modes
-    public bool followMode = false; // false = freecam, true = follow ball
+    public bool followMode = true; // false = freecam, true = follow ball
 
     [Header("Free Camera Movement")]
     public float moveSpeed = 10f;     // WASD movement speed
@@ -41,13 +41,15 @@ public class CameraModeSwitcher : MonoBehaviour
         if (Keyboard.current == null)
             return;
 
-        // Toggle between freecam and follow mode
+        if (GameUIManager3D.Instance != null &&
+            !GameUIManager3D.Instance.GameStarted)
+            return;
+
         if (Keyboard.current[toggleKey].wasPressedThisFrame)
         {
             followMode = !followMode;
         }
 
-        // Run correct mode
         if (followMode)
         {
             FollowBall();

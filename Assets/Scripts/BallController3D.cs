@@ -1,104 +1,199 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Ensure the object always has these components
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(Collider))]
+[RequireComponent(typeof(AudioSource))]
 public class BallController3D : MonoBehaviour
 {
     [Header("Shot Settings")]
-    public float maxDragDistance = 3f;        // Max distance player can drag (limits shot power)
-    public float shotForceMultiplier = 8f;    // Multiplies drag into actual force
-    public float minSpeedToBeMoving = 0.15f;  // Threshold to consider ball "still moving"
+    public float maxDragDistance = 3f;
+    public float shotForceMultiplier = 8f;
+    public float minSpeedToBeMoving = 0.15f;
 
-    [Header("Aim Line")]
-    public LineRenderer aimLine;              // Visual line showing shot direction/power
+    [Header("Projected Path")]
+    public LineRenderer aimLine;
+    public int maxBounces = 3;
+    public float pathLengthMultiplier = 1.5f;
+    public float floorLineHeight = 0.03f;
 
-    // Internal references
+    [Header("Selection Outline")]
+    public GameObject selectionOutline;
+    public float outlineYOffset = 0.03f;
+    public Vector3 outlineBaseScale = new Vector3(0.6f, 0.6f, 0.6f);
+    public float outlinePulseSpeed = 6f;
+    public float outlinePulseAmount = 0.03f;
+
+    [Header("SFX")]
+    public AudioSource audioSource;
+    public AudioClip selectSFX;
+    public AudioClip cancelSFX;
+    public AudioClip shootSFX;
+    public AudioClip bounceSFX;
+    public float minBounceSpeedForSFX = 1.5f;
+
     private Rigidbody rb;
     private Collider ballCollider;
     private Camera mainCamera;
 
-    // Drag state
+    private bool isSelected = false;
     private bool isDragging = false;
+
     private Vector3 dragStartPoint;
     private Vector3 dragCurrentPoint;
 
     private void Awake()
     {
-        // Cache components for performance
         rb = GetComponent<Rigidbody>();
         ballCollider = GetComponent<Collider>();
         mainCamera = Camera.main;
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     private void Start()
     {
-        // Initialize the aim line
         if (aimLine != null)
         {
-            aimLine.positionCount = 2; // start + end point
-            aimLine.enabled = false;   // hidden until dragging
+            aimLine.useWorldSpace = true;
+            aimLine.positionCount = 0;
+            aimLine.enabled = false;
+            aimLine.alignment = LineAlignment.View;
         }
+
+        if (selectionOutline != null)
+            selectionOutline.SetActive(false);
     }
 
     private void Update()
     {
-        // Make sure input and camera exist
         if (Mouse.current == null || mainCamera == null)
             return;
 
-        // Prevent shooting while ball is still moving
-        if (IsMoving())
+        // Block all ball input before Start is pressed
+        if (GameUIManager3D.Instance != null &&
+            !GameUIManager3D.Instance.GameStarted)
+        {
+            ClearSelection();
             return;
+        }
 
-        // Convert mouse position to a point on the ground plane
+        UpdateSelectionOutlinePosition();
+
+        if (IsMoving())
+        {
+            ClearSelection();
+            return;
+        }
+
         if (!TryGetMousePointOnGround(out Vector3 mouseWorldPoint))
             return;
 
-        // Start dragging only if we clicked the ball
         if (Mouse.current.leftButton.wasPressedThisFrame)
         {
             if (DidClickBall())
             {
+                if (!isSelected)
+                {
+                    SelectBall();
+                    return;
+                }
+
                 isDragging = true;
                 dragStartPoint = mouseWorldPoint;
                 dragCurrentPoint = mouseWorldPoint;
             }
+            else
+            {
+                ClearSelection();
+            }
         }
 
-        // While dragging, update direction and aim line
         if (isDragging)
         {
             dragCurrentPoint = mouseWorldPoint;
-            UpdateAimLine();
+            UpdateProjectedPath();
+
+            if (Mouse.current.rightButton.wasPressedThisFrame)
+            {
+                CancelDrag();
+                return;
+            }
         }
 
-        // On release, shoot the ball
         if (Mouse.current.leftButton.wasReleasedThisFrame && isDragging)
         {
             isDragging = false;
-
-            if (aimLine != null)
-                aimLine.enabled = false;
+            HideAimLine();
 
             ShootBall();
+            ClearSelection();
         }
     }
 
-    // Converts mouse position into a world point on a flat ground plane
+    private void SelectBall()
+    {
+        isSelected = true;
+        PlaySFX(selectSFX);
+
+        if (selectionOutline != null)
+        {
+            selectionOutline.SetActive(true);
+            UpdateSelectionOutlinePosition();
+        }
+    }
+
+    private void ClearSelection()
+    {
+        isSelected = false;
+        isDragging = false;
+
+        HideAimLine();
+
+        if (selectionOutline != null)
+            selectionOutline.SetActive(false);
+    }
+
+    private void CancelDrag()
+    {
+        isDragging = false;
+
+        PlaySFX(cancelSFX);
+
+        ClearSelection();
+    }
+
+    private void UpdateSelectionOutlinePosition()
+    {
+        if (selectionOutline == null || !selectionOutline.activeSelf)
+            return;
+
+        Vector3 pos = transform.position;
+        pos.y = outlineYOffset;
+
+        selectionOutline.transform.position = pos;
+        selectionOutline.transform.rotation = Quaternion.identity;
+
+        float pulse =
+            1f + Mathf.Sin(Time.time * outlinePulseSpeed) * outlinePulseAmount;
+
+        selectionOutline.transform.localScale =
+            new Vector3(
+                outlineBaseScale.x * pulse,
+                outlineBaseScale.y,
+                outlineBaseScale.z * pulse
+            );
+    }
+
     private bool TryGetMousePointOnGround(out Vector3 worldPoint)
     {
-        // Create a ray from the camera through the mouse
         Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
-
-        // Define a flat horizontal plane at y = 0
         Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
 
-        // Check if ray hits the plane
         if (groundPlane.Raycast(ray, out float enter))
         {
-            worldPoint = ray.GetPoint(enter); // Get exact hit point
+            worldPoint = ray.GetPoint(enter);
             return true;
         }
 
@@ -106,76 +201,110 @@ public class BallController3D : MonoBehaviour
         return false;
     }
 
-    // (Not used anymore, but checks if mouse is close to ball on ground)
-    private bool IsMouseNearBall(Vector3 mouseWorldPoint)
+    private Vector3 GetDragVector()
     {
-        Vector3 flattenedBallPos = transform.position;
-        flattenedBallPos.y = 0f;
+        Vector3 dragVector = dragCurrentPoint - dragStartPoint;
+        dragVector.y = 0f;
 
-        Vector3 flattenedMousePos = mouseWorldPoint;
-        flattenedMousePos.y = 0f;
-
-        return Vector3.Distance(flattenedBallPos, flattenedMousePos) < 1.0f;
+        return Vector3.ClampMagnitude(dragVector, maxDragDistance);
     }
 
-    // Updates the visual aim line while dragging
-    private void UpdateAimLine()
+    private void UpdateProjectedPath()
     {
         if (aimLine == null)
             return;
 
-        // Calculate drag direction
-        Vector3 dragVector = dragCurrentPoint - dragStartPoint;
+        Vector3 dragVector = GetDragVector();
 
-        // Remove vertical component so shot stays horizontal
-        dragVector.y = 0f;
+        if (dragVector.sqrMagnitude < 0.0001f)
+        {
+            HideAimLine();
+            return;
+        }
 
-        // Limit max drag distance (caps power)
-        dragVector = Vector3.ClampMagnitude(dragVector, maxDragDistance);
+        Vector3 direction = -dragVector.normalized;
 
-        // Line starts at ball
-        Vector3 start = transform.position;
+        float shotPower = dragVector.magnitude / maxDragDistance;
 
-        // Line ends in opposite direction (like pulling back a slingshot)
-        Vector3 end = start - dragVector;
+        float remainingLength =
+            dragVector.magnitude *
+            shotForceMultiplier *
+            pathLengthMultiplier *
+            Mathf.Lerp(0.45f, 1f, shotPower);
 
-        // Enable and update line
+        Vector3 currentPoint = transform.position;
+        currentPoint.y = floorLineHeight;
+
         aimLine.enabled = true;
-        aimLine.SetPosition(0, start);
-        aimLine.SetPosition(1, end);
+        aimLine.positionCount = 1;
+        aimLine.SetPosition(0, currentPoint);
+
+        int pointIndex = 1;
+
+        for (int bounce = 0; bounce <= maxBounces; bounce++)
+        {
+            Vector3 rayStart = currentPoint + Vector3.up * 0.25f;
+
+            if (Physics.Raycast(rayStart, direction, out RaycastHit hit, remainingLength))
+            {
+                if (hit.collider == ballCollider)
+                    break;
+
+                Vector3 hitPoint = hit.point;
+                hitPoint.y = floorLineHeight;
+
+                aimLine.positionCount = pointIndex + 1;
+                aimLine.SetPosition(pointIndex, hitPoint);
+                pointIndex++;
+
+                remainingLength -= Vector3.Distance(currentPoint, hitPoint);
+
+                direction = Vector3.Reflect(direction, hit.normal);
+                direction.y = 0f;
+                direction.Normalize();
+
+                currentPoint = hitPoint + direction * 0.05f;
+                currentPoint.y = floorLineHeight;
+            }
+            else
+            {
+                Vector3 endPoint = currentPoint + direction * remainingLength;
+                endPoint.y = floorLineHeight;
+
+                aimLine.positionCount = pointIndex + 1;
+                aimLine.SetPosition(pointIndex, endPoint);
+                break;
+            }
+        }
     }
 
-    // Applies force to the ball based on drag
+    private void HideAimLine()
+    {
+        if (aimLine == null)
+            return;
+
+        aimLine.enabled = false;
+        aimLine.positionCount = 0;
+    }
+
     private void ShootBall()
     {
-        // Calculate drag direction
-        Vector3 dragVector = dragCurrentPoint - dragStartPoint;
+        Vector3 dragVector = GetDragVector();
 
-        // Keep movement horizontal only
-        dragVector.y = 0f;
-
-        // Limit drag distance
-        dragVector = Vector3.ClampMagnitude(dragVector, maxDragDistance);
-
-        // Ignore tiny drags
         if (dragVector.sqrMagnitude < 0.0001f)
             return;
 
-        // Reverse direction (pull back -> shoot forward)
         Vector3 force = -dragVector * shotForceMultiplier;
-
-        // Extra safety: no vertical force
         force.y = 0f;
 
-        // Reset motion before applying new force
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
-        // Apply impulse force
+        PlaySFX(shootSFX);
+
         rb.AddForce(force, ForceMode.Impulse);
     }
 
-    // Checks if ball is still moving (horizontal speed only)
     private bool IsMoving()
     {
         Vector3 horizontalVelocity = rb.linearVelocity;
@@ -184,18 +313,37 @@ public class BallController3D : MonoBehaviour
         return horizontalVelocity.magnitude > minSpeedToBeMoving;
     }
 
-    // Detects if the mouse click hit the ball
     private bool DidClickBall()
     {
-        // Raycast from camera through mouse position
         Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
         if (Physics.Raycast(ray, out RaycastHit hit))
-        {
-            // Return true only if we hit THIS ball's collider
             return hit.collider == ballCollider;
-        }
 
         return false;
     }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (rb == null)
+            return;
+
+        if (collision.relativeVelocity.magnitude >= minBounceSpeedForSFX)
+            PlaySFX(bounceSFX);
+    }
+
+    private void PlaySFX(AudioClip clip)
+    {
+        if (clip == null)
+            return;
+
+        if (audioSource != null)
+            audioSource.PlayOneShot(clip);
+    }
+
+    public bool IsBallMovingOrShot()
+    {
+        return IsMoving();
+    }
+
 }
