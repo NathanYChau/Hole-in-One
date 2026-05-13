@@ -11,11 +11,21 @@ public class BallController3D : MonoBehaviour
     public float shotForceMultiplier = 8f;
     public float minSpeedToBeMoving = 0.15f;
 
+    [Header("One Shot Reset")]
+    public bool resetAfterOneShot = true;
+    public float stoppedResetDelay = 0.75f;
+    public float stoppedConfirmTime = 1.0f;
+
+    private bool shotTaken = false;
+    private bool resetStarted = false;
+    private float stoppedTimer = 0f;
+
     [Header("Projected Path")]
     public LineRenderer aimLine;
-    public int maxBounces = 3;
-    public float pathLengthMultiplier = 1.5f;
+    public int maxBounces = 1;
+    public float pathLengthMultiplier = 0.06f;
     public float floorLineHeight = 0.03f;
+    public float maxAimLineLength = 6f;
 
     [Header("Selection Outline")]
     public GameObject selectionOutline;
@@ -60,6 +70,23 @@ public class BallController3D : MonoBehaviour
             aimLine.positionCount = 0;
             aimLine.enabled = false;
             aimLine.alignment = LineAlignment.View;
+
+            Gradient gradient = new Gradient();
+
+            gradient.SetKeys(
+                new GradientColorKey[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f)
+                },
+                new GradientAlphaKey[]
+                {
+                    new GradientAlphaKey(1f, 0f),
+                    new GradientAlphaKey(0f, 1f)
+                }
+            );
+
+            aimLine.colorGradient = gradient;
         }
 
         if (selectionOutline != null)
@@ -77,6 +104,24 @@ public class BallController3D : MonoBehaviour
         {
             ClearSelection();
             return;
+        }
+
+        if (resetAfterOneShot && shotTaken && !resetStarted)
+        {
+            if (IsMoving())
+            {
+                stoppedTimer = 0f;
+            }
+            else
+            {
+                stoppedTimer += Time.deltaTime;
+
+                if (stoppedTimer >= stoppedConfirmTime)
+                {
+                    StartCoroutine(ResetAfterDelay());
+                    return;
+                }
+            }
         }
 
         UpdateSelectionOutlinePosition();
@@ -226,11 +271,13 @@ public class BallController3D : MonoBehaviour
 
         float shotPower = dragVector.magnitude / maxDragDistance;
 
-        float remainingLength =
+        float remainingLength = Mathf.Min(
             dragVector.magnitude *
             shotForceMultiplier *
             pathLengthMultiplier *
-            Mathf.Lerp(0.45f, 1f, shotPower);
+            Mathf.Lerp(0.45f, 1f, shotPower),
+            maxAimLineLength
+        );
 
         Vector3 currentPoint = transform.position;
         currentPoint.y = floorLineHeight;
@@ -303,6 +350,8 @@ public class BallController3D : MonoBehaviour
         PlaySFX(shootSFX);
 
         rb.AddForce(force, ForceMode.Impulse);
+
+        shotTaken = true;
     }
 
     private bool IsMoving()
@@ -341,9 +390,21 @@ public class BallController3D : MonoBehaviour
             audioSource.PlayOneShot(clip);
     }
 
+    private System.Collections.IEnumerator ResetAfterDelay()
+    {
+        resetStarted = true;
+
+        yield return new WaitForSeconds(stoppedResetDelay);
+
+        Time.timeScale = 1f;
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex
+        );
+    }
+
     public bool IsBallMovingOrShot()
     {
         return IsMoving();
     }
-
 }

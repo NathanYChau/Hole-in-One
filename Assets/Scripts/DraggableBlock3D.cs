@@ -2,15 +2,24 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Collider))]
+[RequireComponent(typeof(AudioSource))]
 public class DraggableBlock3D : MonoBehaviour
 {
     [Header("Drag Settings")]
     public float dragHeight = 0.5f;
     public float minDistanceFromBall = 1.2f;
 
+    [Header("Collision Check")]
+    public LayerMask blockedLayers;
+
     [Header("Ball Reference")]
     public BallController3D ball;
     public Collider ballCollider;
+
+    [Header("SFX")]
+    public AudioSource audioSource;
+    public AudioClip pickUpSFX;
+    public AudioClip placeSFX;
 
     private Camera mainCamera;
     private Collider blockCollider;
@@ -22,6 +31,9 @@ public class DraggableBlock3D : MonoBehaviour
     {
         mainCamera = Camera.main;
         blockCollider = GetComponent<Collider>();
+
+        if (audioSource == null)
+            audioSource = GetComponent<AudioSource>();
     }
 
     private void Start()
@@ -39,7 +51,6 @@ public class DraggableBlock3D : MonoBehaviour
             !GameUIManager3D.Instance.GameStarted)
             return;
 
-        // Disable dragging once the ball is moving.
         if (ball != null && ball.IsBallMovingOrShot())
         {
             StopDragging();
@@ -61,8 +72,7 @@ public class DraggableBlock3D : MonoBehaviour
             Vector3 newPos = mouseWorldPoint + offset;
             newPos.y = dragHeight;
 
-            // Prevent placing directly on the ball.
-            if (CanPlaceAt(newPos))
+            if (CanPlaceAt(newPos) && !WouldOverlapObject(newPos))
                 transform.position = newPos;
         }
     }
@@ -75,8 +85,8 @@ public class DraggableBlock3D : MonoBehaviour
         isDragging = true;
         offset = transform.position - mousePoint;
 
-        // Prevent the dragged block from pushing the ball.
         IgnoreBallCollision(true);
+        PlaySFX(pickUpSFX);
     }
 
     private void StopDragging()
@@ -86,8 +96,8 @@ public class DraggableBlock3D : MonoBehaviour
 
         isDragging = false;
 
-        // Re-enable collision after placement.
         IgnoreBallCollision(false);
+        PlaySFX(placeSFX);
     }
 
     private void IgnoreBallCollision(bool ignore)
@@ -101,13 +111,18 @@ public class DraggableBlock3D : MonoBehaviour
         if (ball == null)
             return true;
 
-        Vector3 blockFlat = newPos;
-        blockFlat.y = 0f;
+        Vector3 closestPoint = blockCollider.ClosestPoint(ball.transform.position);
+
+        Vector3 moveOffset = newPos - transform.position;
+        closestPoint += moveOffset;
 
         Vector3 ballFlat = ball.transform.position;
         ballFlat.y = 0f;
 
-        float distance = Vector3.Distance(blockFlat, ballFlat);
+        Vector3 closestFlat = closestPoint;
+        closestFlat.y = 0f;
+
+        float distance = Vector3.Distance(closestFlat, ballFlat);
 
         return distance >= minDistanceFromBall;
     }
@@ -135,5 +150,36 @@ public class DraggableBlock3D : MonoBehaviour
 
         point = Vector3.zero;
         return false;
+    }
+
+    private bool WouldOverlapObject(Vector3 newPos)
+    {
+        Vector3 halfExtents = blockCollider.bounds.extents * 0.9f;
+
+        Collider[] hits = Physics.OverlapBox(
+            newPos,
+            halfExtents,
+            transform.rotation,
+            blockedLayers,
+            QueryTriggerInteraction.Ignore
+        );
+
+        foreach (Collider hit in hits)
+        {
+            if (hit == blockCollider)
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private void PlaySFX(AudioClip clip)
+    {
+        if (clip == null || audioSource == null)
+            return;
+
+        audioSource.PlayOneShot(clip);
     }
 }
