@@ -10,15 +10,13 @@ A 3D third-person golf game built in Unity. Players click and drag the ball to a
 
 ## Current Progress
 - Functional ball physics with click-and-drag shooting mechanic
-- At least one playable level with hazards (walls, friction zones, gap)
+- 3 playable level with hazards (walls, physics objects, gaps)
 - Free-moving camera (not locked to ball)
 - Goal zone detection
 - Functional UI for Start/End
 - SFX added for buttons and hits
+- Draggable blue blocks, additional ball with physics interactions 
 
-## Future Goals
-- Sound should be dependent on what sort of interaction is present to make it clear to the player
-- Interactable level hazards: The user should be able to click and trigger some sort of interaction
 
 ## Team Roles
 - Anthony Kim : Level design, hazard placement, course layout
