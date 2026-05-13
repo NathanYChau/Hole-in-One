@@ -24,7 +24,10 @@ public class BallController3D : MonoBehaviour
     public LineRenderer aimLine;
     public int maxBounces = 1;
     public float pathLengthMultiplier = 0.06f;
-    public float floorLineHeight = 0.03f;
+
+    // This is now an offset ABOVE the ball, not a fixed world Y height.
+    public float lineHeightOffset = 0.05f;
+
     public float maxAimLineLength = 6f;
 
     [Header("Selection Outline")]
@@ -98,7 +101,6 @@ public class BallController3D : MonoBehaviour
         if (Mouse.current == null || mainCamera == null)
             return;
 
-        // Block all ball input before Start is pressed
         if (GameUIManager3D.Instance != null &&
             !GameUIManager3D.Instance.GameStarted)
         {
@@ -215,7 +217,7 @@ public class BallController3D : MonoBehaviour
             return;
 
         Vector3 pos = transform.position;
-        pos.y = outlineYOffset;
+        pos.y = transform.position.y + outlineYOffset;
 
         selectionOutline.transform.position = pos;
         selectionOutline.transform.rotation = Quaternion.identity;
@@ -279,8 +281,10 @@ public class BallController3D : MonoBehaviour
             maxAimLineLength
         );
 
+        float aimLineY = transform.position.y + lineHeightOffset;
+
         Vector3 currentPoint = transform.position;
-        currentPoint.y = floorLineHeight;
+        currentPoint.y = aimLineY;
 
         aimLine.enabled = true;
         aimLine.positionCount = 1;
@@ -298,7 +302,7 @@ public class BallController3D : MonoBehaviour
                     break;
 
                 Vector3 hitPoint = hit.point;
-                hitPoint.y = floorLineHeight;
+                hitPoint.y = aimLineY;
 
                 aimLine.positionCount = pointIndex + 1;
                 aimLine.SetPosition(pointIndex, hitPoint);
@@ -311,12 +315,12 @@ public class BallController3D : MonoBehaviour
                 direction.Normalize();
 
                 currentPoint = hitPoint + direction * 0.05f;
-                currentPoint.y = floorLineHeight;
+                currentPoint.y = aimLineY;
             }
             else
             {
                 Vector3 endPoint = currentPoint + direction * remainingLength;
-                endPoint.y = floorLineHeight;
+                endPoint.y = aimLineY;
 
                 aimLine.positionCount = pointIndex + 1;
                 aimLine.SetPosition(pointIndex, endPoint);
