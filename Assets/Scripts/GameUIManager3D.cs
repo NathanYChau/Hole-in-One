@@ -30,12 +30,18 @@ public class GameUIManager3D : MonoBehaviour
     {
         GameStarted = false;
 
-        startScreen.SetActive(true);
-        controlsPopup.SetActive(false);
-        controlsButton.SetActive(false);
-        restartButton.SetActive(false);
-
-        Time.timeScale = 0f;
+        if (SceneManager.GetActiveScene().buildIndex == 0)
+        {
+            startScreen.SetActive(true);
+            controlsPopup.SetActive(false);
+            controlsButton.SetActive(false);
+            restartButton.SetActive(false);
+            Time.timeScale = 0f;
+        }
+        else
+        {
+            StartGame();
+        }
     }
 
     public void StartGame()
