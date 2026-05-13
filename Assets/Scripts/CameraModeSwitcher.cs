@@ -1,55 +1,121 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Handles switching between follow camera mode and freecam mode
 public class CameraModeSwitcher : MonoBehaviour
 {
+    // -------------------------
+    // TARGET SETTINGS
+    // -------------------------
+
     [Header("Target")]
-    public Transform target; // The ball the camera will follow
+
+    // The object the camera follows (usually the ball)
+    public Transform target;
+
+    // -------------------------
+    // CAMERA MODE TOGGLE
+    // -------------------------
 
     [Header("Mode Toggle")]
-    public Key toggleKey = Key.F; // Press F to switch modes
-    public bool followMode = true; // false = freecam, true = follow ball
+
+    // Press this key to swap between follow mode and freecam
+    public Key toggleKey = Key.F;
+
+    // true = follow ball
+    // false = freecam
+    public bool followMode = true;
+
+    // -------------------------
+    // FREE CAMERA MOVEMENT
+    // -------------------------
 
     [Header("Free Camera Movement")]
-    public float moveSpeed = 10f;     // WASD movement speed
-    public float verticalSpeed = 8f;  // Q/E up/down speed
+
+    // WASD movement speed
+    public float moveSpeed = 10f;
+
+    // Q/E vertical movement speed
+    public float verticalSpeed = 8f;
+
+    // -------------------------
+    // FREE CAMERA LOOK
+    // -------------------------
 
     [Header("Free Camera Look")]
-    public float lookSensitivity = 0.15f; // Mouse sensitivity
-    public float minPitch = -30f;         // Limit looking down
-    public float maxPitch = 80f;          // Limit looking up
+
+    // Mouse sensitivity when rotating camera
+    public float lookSensitivity = 0.15f;
+
+    // Lowest vertical angle allowed
+    public float minPitch = -30f;
+
+    // Highest vertical angle allowed
+    public float maxPitch = 80f;
+
+    // -------------------------
+    // FOLLOW CAMERA SETTINGS
+    // -------------------------
 
     [Header("Follow Camera")]
-    public Vector3 followOffset = new Vector3(0f, 8f, -8f); // Offset from ball
-    public float followSpeed = 6f; // How smoothly camera follows
-    public bool lookAtTarget = true; // Should camera face the ball
 
-    // Internal rotation tracking
-    private float yaw;   // left/right rotation
-    private float pitch; // up/down rotation
+    // Camera offset from the target
+    // Example:
+    // (0, 8, -8) = above and behind the ball
+    public Vector3 followOffset = new Vector3(0f, 8f, -8f);
+
+    // How smoothly the camera follows
+    public float followSpeed = 6f;
+
+    // Should the camera constantly face the target?
+    public bool lookAtTarget = true;
+
+    // -------------------------
+    // INTERNAL ROTATION TRACKING
+    // -------------------------
+
+    // Left/right camera rotation
+    private float yaw;
+
+    // Up/down camera rotation
+    private float pitch;
+
+    // -------------------------
+    // UNITY START
+    // -------------------------
 
     private void Start()
     {
-        // Initialize yaw/pitch based on current camera rotation
+        // Store initial camera rotation
+        // so freecam starts facing the correct direction
         Vector3 startRotation = transform.eulerAngles;
+
         yaw = startRotation.y;
         pitch = startRotation.x;
     }
 
+    // -------------------------
+    // UNITY UPDATE
+    // -------------------------
+
     private void Update()
     {
+        // Safety check
         if (Keyboard.current == null)
             return;
 
+        // Disable camera controls before game starts
         if (GameUIManager3D.Instance != null &&
             !GameUIManager3D.Instance.GameStarted)
             return;
 
+        // Toggle between follow mode and freecam
         if (Keyboard.current[toggleKey].wasPressedThisFrame)
         {
             followMode = !followMode;
         }
 
+        // Run correct camera mode
         if (followMode)
         {
             FollowBall();
@@ -61,54 +127,67 @@ public class CameraModeSwitcher : MonoBehaviour
         }
     }
 
+    // -------------------------
+    // FREECAM MOVEMENT
+    // -------------------------
+
     private void FreeMove()
     {
         Vector3 move = Vector3.zero;
 
-        // Move in full camera direction (including vertical)
+        // Move forward relative to camera direction
         if (Keyboard.current.wKey.isPressed)
             move += transform.forward;
 
+        // Move backward
         if (Keyboard.current.sKey.isPressed)
             move -= transform.forward;
 
+        // Move left
         if (Keyboard.current.aKey.isPressed)
             move -= transform.right;
 
+        // Move right
         if (Keyboard.current.dKey.isPressed)
             move += transform.right;
 
-        // Normalize so diagonal isn't faster
+        // Prevent diagonal movement from being faster
         move = move.normalized;
 
         // Apply movement
         transform.position += move * moveSpeed * Time.deltaTime;
 
-        // Optional extra vertical controls (can keep or remove)
+        // Move upward
         if (Keyboard.current.qKey.isPressed)
             transform.position += Vector3.up * verticalSpeed * Time.deltaTime;
 
+        // Move downward
         if (Keyboard.current.eKey.isPressed)
             transform.position += Vector3.down * verticalSpeed * Time.deltaTime;
     }
+
+    // -------------------------
+    // FREECAM LOOK ROTATION
+    // -------------------------
 
     private void FreeLook()
     {
         if (Mouse.current == null)
             return;
 
-        // Hold right mouse button to rotate camera
+        // Only rotate camera while right mouse button is held
         if (Mouse.current.rightButton.isPressed)
         {
+            // Mouse movement since last frame
             Vector2 mouseDelta = Mouse.current.delta.ReadValue();
 
-            // Drag right -> camera turns right
+            // Horizontal turning
             yaw += mouseDelta.x * lookSensitivity;
 
-            // Drag up -> camera looks up
+            // Vertical looking
             pitch -= mouseDelta.y * lookSensitivity;
 
-            // Clamp vertical rotation so you can't flip upside down
+            // Prevent flipping upside down
             pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
             // Apply rotation
@@ -116,22 +195,27 @@ public class CameraModeSwitcher : MonoBehaviour
         }
     }
 
+    // -------------------------
+    // FOLLOW CAMERA MODE
+    // -------------------------
+
     private void FollowBall()
     {
+        // Safety check
         if (target == null)
             return;
 
-        // Desired position = ball position + offset
+        // Desired position = target position + offset
         Vector3 desiredPosition = target.position + followOffset;
 
-        // Smoothly move camera toward that position
+        // Smoothly move camera toward target
         transform.position = Vector3.Lerp(
             transform.position,
             desiredPosition,
             followSpeed * Time.deltaTime
         );
 
-        // Optionally rotate camera to always look at ball
+        // Make camera face the target
         if (lookAtTarget)
         {
             transform.LookAt(target.position);
