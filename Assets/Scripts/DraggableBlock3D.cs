@@ -6,11 +6,17 @@ using UnityEngine.InputSystem;
 public class DraggableBlock3D : MonoBehaviour
 {
     [Header("Drag Settings")]
-    public float dragHeight = 0.5f;
+    public float dragHeight = 0.0f;
     public float minDistanceFromBall = 1.2f;
 
     [Header("Collision Check")]
     public LayerMask blockedLayers;
+
+    [Header("Drag Boundaries")]
+    public float minX = -5f;
+    public float maxX = 5f;
+    public float minZ = -5f;
+    public float maxZ = 5f;
 
     [Header("Ball Reference")]
     public BallController3D ball;
@@ -71,6 +77,9 @@ public class DraggableBlock3D : MonoBehaviour
         {
             Vector3 newPos = mouseWorldPoint + offset;
             newPos.y = dragHeight;
+
+            newPos.x = Mathf.Clamp(newPos.x, minX, maxX);
+            newPos.z = Mathf.Clamp(newPos.z, minZ, maxZ);
 
             if (CanPlaceAt(newPos) && !WouldOverlapObject(newPos))
                 transform.position = newPos;
